@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
-
+import { useEffect, useState } from "react";
+import _cloneDeep from "lodash/cloneDeep";
 //　セルの幅
 const CELL_WIDTH: number = 24;
 //　セルの高さ
@@ -91,8 +92,6 @@ const blockShapes: {
   }, // T
 ];
 
-const board: CellItem[][] = [];
-
 const getCellColor = (status: CellStatus) => {
   switch (status) {
     case CellStatus.NORMAL:
@@ -118,33 +117,8 @@ const getCellColor = (status: CellStatus) => {
   }
 };
 
-const putBlock = (
-  blockIndex: number,
-  x: number,
-  y: number,
-  rotation: number,
-  remove: boolean = false,
-  action: boolean = false
-) => {
-  // 枠分プラスする
-  x = x + 1;
-  y = y + 1;
-  const blockShape = { ...blockShapes[blockIndex] };
-  const rotationMax = blockShape.rotation;
-  blockShape.shape.unshift([0, 0]);
-
-  for (let [dy, dx] of blockShape.shape) {
-    for (let i = 0; i < rotation % rotationMax; i++) {
-      [dx, dy] = [dy, -dx];
-    }
-    if (remove) {
-    } else {
-      board[y + dy][x + dx].status = blockIndex;
-    }
-  }
-};
-
 const initBoard = () => {
+  const board: CellItem[][] = [];
   for (let y = 0; y < BOARD_Y + BOARD_EDGE * 2; y++) {
     board[y] = [];
     for (let x = 0; x < BOARD_X + BOARD_EDGE * 2; x++) {
@@ -165,10 +139,8 @@ const initBoard = () => {
       }
     }
   }
+  return board;
 };
-
-initBoard();
-putBlock(5, 4, 10, 0, false, false);
 
 const Stage = styled("div")`
   display: flex;
@@ -205,6 +177,100 @@ const Cell = styled("div")`
 `;
 
 const Tetris = () => {
+  const [board, setBoard] = useState<CellItem[][]>(initBoard());
+  const [gameOver, setGameOver] = useState<boolean>();
+  const [cx, setCx] = useState<number>(5);
+  const [cy, setCy] = useState<number>(2);
+  const [cr, setCr] = useState<number>(0);
+  const [ci, setCi] = useState<number>(5);
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowLeft":
+        move(-1, 0, 0);
+        break;
+      case "ArrowRight":
+        move(1, 0, 0);
+        break;
+      case "ArrowDown":
+        move(0, 1, 0);
+        break;
+      case "ArrowUp":
+        move(0, 0, 1);
+        break;
+      default:
+        break;
+    }
+  };
+
+  useEffect(() => {
+    window.document.addEventListener("keydown", handleKeyDown);
+    putBlock(ci, cx, cy, cr);
+    return () => {
+      window.document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log("useEffect");
+  }, [ci, cx, cy, cr]);
+
+  const putBlock = (
+    blockIndex: number,
+    x: number,
+    y: number,
+    rotation: number,
+    remove: boolean = false,
+    action: boolean = false
+  ) => {
+    const _board: CellItem[][] = _cloneDeep<CellItem[][]>(board);
+
+    const blockShape = { ...blockShapes[blockIndex] };
+    const rotationMax = blockShape.rotation;
+    blockShape.shape.unshift([0, 0]);
+
+    for (let [dy, dx] of blockShape.shape) {
+      for (let i = 0; i < rotation % rotationMax; i++) {
+        [dx, dy] = [dy, -dx];
+      }
+      if (remove) {
+        _board[y + dy][x + dx].status = CellStatus.NORMAL;
+        setBoard(_board);
+      } else {
+        if (_board[y + dy][x + dx].status === CellStatus.EDGE) {
+          return false;
+        }
+        if (action) {
+          _board[y + dy][x + dx].status = blockIndex;
+
+          setBoard(_board);
+        }
+      }
+    }
+
+    if (!action) {
+      putBlock(blockIndex, x, y, rotation, remove, true);
+    }
+
+    return true;
+  };
+
+  const move = (dx: number, dy: number, dr: number): boolean => {
+    console.log(`cx:${cx}, cy:${cy}, cr:${cr}`);
+    putBlock(ci, cx, cy, cr, true);
+    if (putBlock(ci, cx + dx, cy + dy, cr + dr)) {
+      console.log(`AAA dx:${dx}, dy:${dy}, dr:${dr}`);
+      // setCx(cx + dx);
+      // setCy(cy + dy);
+      // setCr(cr + dr);
+      return true;
+    } else {
+      console.log(`BBB dx:${dx}, dy:${dy}, dr:${dr}`);
+      putBlock(ci, cx, cy, cr);
+      return false;
+    }
+  };
+
   return (
     <Stage>
       <Area>
@@ -255,7 +321,7 @@ const Tetris = () => {
             return item.map((item2, index2) => {
               return (
                 <Cell
-                  key={index + "-" + index2}
+                  key={"key" + index + "-" + index2}
                   style={{
                     top: `${index * CELL_HEIGHT}px`,
 
