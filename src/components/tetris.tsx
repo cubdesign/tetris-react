@@ -145,6 +145,7 @@ const initBoard = () => {
 const Stage = styled("div")`
   display: flex;
   gap: 60px;
+  background-color: aliceblue;
 `;
 
 const Area = styled("div")`
@@ -178,13 +179,14 @@ const Cell = styled("div")`
 
 const Tetris = () => {
   const [board, setBoard] = useState<CellItem[][]>(initBoard());
-  const [gameOver, setGameOver] = useState<boolean>();
-  const [cx, setCx] = useState<number>(5);
-  const [cy, setCy] = useState<number>(2);
+  const [gameOver, setGameOver] = useState<boolean>(false);
+  const [cx, setCx] = useState<number>(0);
+  const [cy, setCy] = useState<number>(0);
   const [cr, setCr] = useState<number>(0);
-  const [ci, setCi] = useState<number>(5);
-
+  const [ci, setCi] = useState<number>(0);
   const handleKeyDown = (e: KeyboardEvent) => {
+    console.log(this);
+    console.log(`cx:${cx}, cy:${cy}, cr:${cr}`);
     switch (e.key) {
       case "ArrowLeft":
         move(-1, 0, 0);
@@ -205,7 +207,7 @@ const Tetris = () => {
 
   useEffect(() => {
     window.document.addEventListener("keydown", handleKeyDown);
-    putBlock(ci, cx, cy, cr);
+    newBlock();
     return () => {
       window.document.removeEventListener("keydown", handleKeyDown);
     };
@@ -213,7 +215,23 @@ const Tetris = () => {
 
   useEffect(() => {
     console.log("useEffect");
+    updateDisplay();
   }, [ci, cx, cy, cr]);
+
+  const updateDisplay = () => {
+    console.log("updateDisplay");
+  };
+  const newBlock = () => {
+    const ci = Math.floor(Math.random() * blockShapes.length);
+    const cx = Math.floor(BOARD_X / 2);
+    const cy = 4;
+    const cr = 0;
+    setCi(ci);
+    setCx(cx);
+    setCy(cy);
+    setCr(cr);
+    putBlock(ci, cx, cy, cr);
+  };
 
   const putBlock = (
     blockIndex: number,
@@ -260,9 +278,9 @@ const Tetris = () => {
     putBlock(ci, cx, cy, cr, true);
     if (putBlock(ci, cx + dx, cy + dy, cr + dr)) {
       console.log(`AAA dx:${dx}, dy:${dy}, dr:${dr}`);
-      // setCx(cx + dx);
-      // setCy(cy + dy);
-      // setCr(cr + dr);
+      setCx(cx + dx);
+      setCy(cy + dy);
+      setCr(cr + dr);
       return true;
     } else {
       console.log(`BBB dx:${dx}, dy:${dy}, dr:${dr}`);
