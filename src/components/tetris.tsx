@@ -3,9 +3,9 @@ import { useEffect, useState, useRef } from "react";
 import _cloneDeep from "lodash/cloneDeep";
 import _ from "lodash";
 //　セルの幅
-const CELL_WIDTH: number = 44;
+const CELL_WIDTH: number = 24;
 //　セルの高さ
-const CELL_HEIGHT: number = 44;
+const CELL_HEIGHT: number = 24;
 //  ボードのX方向のセル数
 const BOARD_X: number = 10;
 // ボードのY方向のセル数
@@ -229,7 +229,7 @@ const Tetris = () => {
           newBlock();
         }
       }
-    }, 500);
+    }, 1000);
 
     return () => {
       window.document.removeEventListener("keydown", handleKeyDown);
@@ -243,6 +243,7 @@ const Tetris = () => {
   }, [board, gameOver]);
 
   const newBlock = () => {
+    clearLine();
     ci = Math.trunc(Math.random() * 7 + 1);
     cx = 4;
     cy = 2;
@@ -334,7 +335,49 @@ const Tetris = () => {
         }
       }
     }
+    boardRef.current = _board;
     setBoard(_board);
+  };
+
+  const clearLine = () => {
+    let isReDraw = false;
+    const _board: CellItem[][] = _cloneDeep<CellItem[][]>(boardRef.current);
+    for (let y = 0; y < BOARD_Y + BOARD_EDGE * 2; y++) {
+      let removeAble: boolean = true;
+      for (let x = 0; x < BOARD_X + BOARD_EDGE * 2; x++) {
+        if (y === 0 || y === BOARD_Y + BOARD_EDGE * 2 - 1) {
+          removeAble = false;
+          break;
+        } else if (x === 0 || x === BOARD_X + BOARD_EDGE * 2 - 1) {
+          // 周囲のセル
+          // 何もしない
+        } else {
+          if (_board[y][x].status === CellStatus.NORMAL) {
+            removeAble = false;
+            break;
+          }
+        }
+      }
+      if (removeAble) {
+        for (let j = y; j >= 0; j--) {
+          for (let x = 0; x < BOARD_X + BOARD_EDGE * 2; x++) {
+            if (x === 0 || x === BOARD_X + BOARD_EDGE * 2 - 1) {
+              // 周囲のセル
+              // 何もしない
+            } else {
+              isReDraw = true;
+              _board[j][x].status =
+                j === 0 ? CellStatus.NORMAL : _board[j - 1][x].status;
+            }
+          }
+        }
+        y--;
+      }
+    }
+    if (isReDraw) {
+      boardRef.current = _board;
+      setBoard(_board);
+    }
   };
 
   const move = (dx: number, dy: number, dr: number): boolean => {
