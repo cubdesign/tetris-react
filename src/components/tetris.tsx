@@ -237,7 +237,6 @@ const Tetris = () => {
   }, []);
 
   useEffect(() => {
-    console.log("useEffect");
     // TODO: 汚いコード
     boardRef.current = board;
     gameOverRef.current = gameOver;
@@ -274,7 +273,6 @@ const Tetris = () => {
       }
 
       _board[y + dy][x + dx].status = CellStatus.NORMAL;
-      console.log(`remove ${y + dy}, ${x + dx}`);
       // TODO: 汚いコード
       boardRef.current = _board;
       setBoard(_board);
@@ -302,7 +300,6 @@ const Tetris = () => {
       if (action) {
         _board[y + dy][x + dx].status = blockIndex;
         // TODO: 汚いコード
-        console.log(`add ${y + dy}, ${x + dx}`);
         boardRef.current = _board;
         setBoard(_board);
       } else {
@@ -319,8 +316,6 @@ const Tetris = () => {
   };
 
   const showGameOverBoard = () => {
-    console.log("showGameOverBoard");
-
     const _board: CellItem[][] = _cloneDeep<CellItem[][]>(boardRef.current);
     for (let y = 0; y < BOARD_Y + BOARD_EDGE * 2; y++) {
       for (let x = 0; x < BOARD_X + BOARD_EDGE * 2; x++) {
@@ -334,7 +329,6 @@ const Tetris = () => {
           // 何もしない
         } else {
           if (_board[y][x].status !== CellStatus.NORMAL) {
-            console.log("色変更");
             _board[y][x].status = CellStatus.GAME_OVER;
           }
         }
