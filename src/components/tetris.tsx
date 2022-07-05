@@ -1,10 +1,11 @@
 import styled from "@emotion/styled";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import _cloneDeep from "lodash/cloneDeep";
+import _ from "lodash";
 //　セルの幅
-const CELL_WIDTH: number = 24;
+const CELL_WIDTH: number = 44;
 //　セルの高さ
-const CELL_HEIGHT: number = 24;
+const CELL_HEIGHT: number = 44;
 //  ボードのX方向のセル数
 const BOARD_X: number = 10;
 // ボードのY方向のセル数
@@ -22,6 +23,7 @@ enum CellStatus {
   L_2 = 6,
   T = 7,
   EDGE = 8,
+  GAME_OVER = 9,
 }
 
 type CellItem = {
@@ -112,6 +114,9 @@ const getCellColor = (status: CellStatus) => {
       return "#ffa500";
     case CellStatus.EDGE:
       return "#7b7a7a";
+    case CellStatus.GAME_OVER:
+      return "#ff0000";
+
     default:
       return "#e3ffbb";
   }
@@ -177,37 +182,55 @@ const Cell = styled("div")`
   border: outset 3px #686565;
 `;
 
+let ci: number = 0;
+let cx: number = 0;
+let cy: number = 0;
+let cr: number = 0;
+
 const Tetris = () => {
   const [board, setBoard] = useState<CellItem[][]>(initBoard());
   const [gameOver, setGameOver] = useState<boolean>(false);
-  const [cx, setCx] = useState<number>(0);
-  const [cy, setCy] = useState<number>(0);
-  const [cr, setCr] = useState<number>(0);
-  const [ci, setCi] = useState<number>(0);
-  const handleKeyDown = (e: KeyboardEvent) => {
-    console.log(this);
-    console.log(`cx:${cx}, cy:${cy}, cr:${cr}`);
-    switch (e.key) {
-      case "ArrowLeft":
-        move(-1, 0, 0);
-        break;
-      case "ArrowRight":
-        move(1, 0, 0);
-        break;
-      case "ArrowDown":
-        move(0, 1, 0);
-        break;
-      case "ArrowUp":
-        move(0, 0, 1);
-        break;
-      default:
-        break;
-    }
-  };
 
+  const boardRef = useRef<CellItem[][]>(board);
+  const gameOverRef = useRef<boolean>(gameOver);
+
+  //
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (gameOverRef.current) return;
+      gameOverRef.current = false;
+      switch (e.key) {
+        case "ArrowLeft":
+          move(-1, 0, 0);
+          break;
+        case "ArrowRight":
+          move(1, 0, 0);
+          break;
+        case "ArrowDown":
+          if (!move(0, 1, 0)) {
+            newBlock();
+          }
+          break;
+        case "ArrowUp":
+          move(0, 0, 1);
+          break;
+        default:
+          break;
+      }
+      e.preventDefault();
+    };
+
     window.document.addEventListener("keydown", handleKeyDown);
     newBlock();
+
+    setInterval(() => {
+      if (!gameOverRef.current) {
+        if (!move(0, 1, 0)) {
+          newBlock();
+        }
+      }
+    }, 500);
+
     return () => {
       window.document.removeEventListener("keydown", handleKeyDown);
     };
@@ -215,33 +238,31 @@ const Tetris = () => {
 
   useEffect(() => {
     console.log("useEffect");
-    updateDisplay();
-  }, [ci, cx, cy, cr]);
+    // TODO: 汚いコード
+    boardRef.current = board;
+    gameOverRef.current = gameOver;
+  }, [board, gameOver]);
 
-  const updateDisplay = () => {
-    console.log("updateDisplay");
-  };
   const newBlock = () => {
-    const ci = Math.floor(Math.random() * blockShapes.length);
-    const cx = Math.floor(BOARD_X / 2);
-    const cy = 4;
-    const cr = 0;
-    setCi(ci);
-    setCx(cx);
-    setCy(cy);
-    setCr(cr);
-    putBlock(ci, cx, cy, cr);
+    ci = Math.trunc(Math.random() * 7 + 1);
+    cx = 4;
+    cy = 2;
+    cr = Math.trunc(Math.random() * 4);
+    if (putBlock(ci, cx, cy, cr)) {
+      putBlock(ci, cx, cy, cr, true);
+    } else {
+      setGameOver(true);
+      showGameOverBoard();
+    }
   };
 
-  const putBlock = (
+  const removeBlock = (
     blockIndex: number,
     x: number,
     y: number,
-    rotation: number,
-    remove: boolean = false,
-    action: boolean = false
+    rotation: number
   ) => {
-    const _board: CellItem[][] = _cloneDeep<CellItem[][]>(board);
+    const _board: CellItem[][] = _cloneDeep<CellItem[][]>(boardRef.current);
 
     const blockShape = { ...blockShapes[blockIndex] };
     const rotationMax = blockShape.rotation;
@@ -251,40 +272,87 @@ const Tetris = () => {
       for (let i = 0; i < rotation % rotationMax; i++) {
         [dx, dy] = [dy, -dx];
       }
-      if (remove) {
-        _board[y + dy][x + dx].status = CellStatus.NORMAL;
+
+      _board[y + dy][x + dx].status = CellStatus.NORMAL;
+      console.log(`remove ${y + dy}, ${x + dx}`);
+      // TODO: 汚いコード
+      boardRef.current = _board;
+      setBoard(_board);
+    }
+    return true;
+  };
+
+  const putBlock = (
+    blockIndex: number,
+    x: number,
+    y: number,
+    rotation: number,
+    action: boolean = false
+  ) => {
+    const _board: CellItem[][] = _cloneDeep<CellItem[][]>(boardRef.current);
+
+    const blockShape = { ...blockShapes[blockIndex] };
+    const rotationMax = blockShape.rotation;
+    blockShape.shape.unshift([0, 0]);
+    for (let [dy, dx] of blockShape.shape) {
+      for (let i = 0; i < rotation % rotationMax; i++) {
+        [dx, dy] = [dy, -dx];
+      }
+
+      if (action) {
+        _board[y + dy][x + dx].status = blockIndex;
+        // TODO: 汚いコード
+        console.log(`add ${y + dy}, ${x + dx}`);
+        boardRef.current = _board;
         setBoard(_board);
       } else {
+        // TODO: 汚いコード 必ずdryRunの後に実行されるようる
         if (_board[y + dy][x + dx].status === CellStatus.EDGE) {
           return false;
-        }
-        if (action) {
-          _board[y + dy][x + dx].status = blockIndex;
-
-          setBoard(_board);
+        } else if (_board[y + dy][x + dx].status !== CellStatus.NORMAL) {
+          return false;
         }
       }
-    }
-
-    if (!action) {
-      putBlock(blockIndex, x, y, rotation, remove, true);
     }
 
     return true;
   };
 
+  const showGameOverBoard = () => {
+    console.log("showGameOverBoard");
+
+    const _board: CellItem[][] = _cloneDeep<CellItem[][]>(boardRef.current);
+    for (let y = 0; y < BOARD_Y + BOARD_EDGE * 2; y++) {
+      for (let x = 0; x < BOARD_X + BOARD_EDGE * 2; x++) {
+        if (
+          y === 0 ||
+          y === BOARD_Y + BOARD_EDGE * 2 - 1 ||
+          x === 0 ||
+          x === BOARD_X + BOARD_EDGE * 2 - 1
+        ) {
+          // 周囲のセル
+          // 何もしない
+        } else {
+          if (_board[y][x].status !== CellStatus.NORMAL) {
+            console.log("色変更");
+            _board[y][x].status = CellStatus.GAME_OVER;
+          }
+        }
+      }
+    }
+    setBoard(_board);
+  };
+
   const move = (dx: number, dy: number, dr: number): boolean => {
-    console.log(`cx:${cx}, cy:${cy}, cr:${cr}`);
-    putBlock(ci, cx, cy, cr, true);
+    removeBlock(ci, cx, cy, cr);
     if (putBlock(ci, cx + dx, cy + dy, cr + dr)) {
-      console.log(`AAA dx:${dx}, dy:${dy}, dr:${dr}`);
-      setCx(cx + dx);
-      setCy(cy + dy);
-      setCr(cr + dr);
+      putBlock(ci, cx + dx, cy + dy, cr + dr, true);
+      cx += dx;
+      cy += dy;
+      cr += dr;
       return true;
     } else {
-      console.log(`BBB dx:${dx}, dy:${dy}, dr:${dr}`);
-      putBlock(ci, cx, cy, cr);
+      putBlock(ci, cx, cy, cr, true);
       return false;
     }
   };
@@ -349,6 +417,7 @@ const Tetris = () => {
                   }}
                 >
                   {item2.status}
+                  {/* {index + "-" + index2} */}
                 </Cell>
               );
             });
