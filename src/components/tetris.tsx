@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { useEffect, useState, useRef } from "react";
-import {
+import TetrisGame, {
   BOARD_EDGE,
   BOARD_X,
   BOARD_Y,
@@ -8,9 +8,6 @@ import {
   CellStatus,
   CELL_HEIGHT,
   CELL_WIDTH,
-  cleanup,
-  init,
-  getBoard,
 } from "../TetrisGame";
 
 const Stage = styled("div")`
@@ -76,18 +73,20 @@ const getCellColor = (status: CellStatus) => {
   }
 };
 
+const game: TetrisGame = new TetrisGame();
+
 const Tetris = () => {
   const [board, setBoard] = useState<CellItem[][]>([]);
   const loop = () => {
-    setBoard(getBoard());
+    setBoard([...game.board]);
     return requestAnimationFrame(loop);
   };
 
   useEffect(() => {
-    init();
+    game.init();
     loop();
     return () => {
-      cleanup();
+      game.cleanup();
     };
   }, []);
 
